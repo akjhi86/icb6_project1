@@ -50,23 +50,33 @@ if data_raw is not None:
         yearly_total = y_df_base.groupby('Year')[['창업수', '폐업수']].sum().reset_index()
         
         # 호버 시 상위 10개 업종 정보를 보여주기 위한 사전 계산
-        top10_info = []
+        top10_info_start = []
+        top10_info_close = []
         for year in yearly_total['Year']:
             year_data = y_df_base[y_df_base['Year'] == year]
-            top10 = year_data.groupby('업종명')['창업수'].sum().nlargest(10)
-            info_str = "<br>".join([f"{i+1}. {name} ({count:,}건)" for i, (name, count) in enumerate(top10.items())])
-            top10_info.append(f"<b>[상위 10개 업종]</b><br>{info_str}")
+            
+            # 창업 상위 10
+            top10_s = year_data.groupby('업종명')['창업수'].sum().nlargest(10)
+            info_str_s = "<br>".join([f"{i+1}. {name} ({count:,}건)" for i, (name, count) in enumerate(top10_s.items())])
+            top10_info_start.append(f"<b>[창업 상위 10개 업종]</b><br>{info_str_s}")
+            
+            # 폐업 상위 10
+            top10_c = year_data.groupby('업종명')['폐업수'].sum().nlargest(10)
+            info_str_c = "<br>".join([f"{i+1}. {name} ({count:,}건)" for i, (name, count) in enumerate(top10_c.items())])
+            top10_info_close.append(f"<b>[폐업 상위 10개 업종]</b><br>{info_str_c}")
         
-        yearly_total['top10_details'] = top10_info
+        yearly_total['top10_details_start'] = top10_info_start
+        yearly_total['top10_details_close'] = top10_info_close
 
         fig1 = go.Figure()
         # 창업수 라인
         fig1.add_trace(go.Scatter(x=yearly_total['Year'], y=yearly_total['창업수'], name='창업수', mode='lines+markers',
-                                  customdata=yearly_total['top10_details'],
+                                  customdata=yearly_total['top10_details_start'],
                                   hovertemplate='<b>연도: %{x}</b><br>창업수: %{y:,}건<br>%{customdata}<extra></extra>'))
         # 폐업수 라인
         fig1.add_trace(go.Scatter(x=yearly_total['Year'], y=yearly_total['폐업수'], name='폐업수', mode='lines+markers',
-                                  hovertemplate='<b>연도: %{x}</b><br>폐업수: %{y:,}건<extra></extra>'))
+                                  customdata=yearly_total['top10_details_close'],
+                                  hovertemplate='<b>연도: %{x}</b><br>폐업수: %{y:,}건<br>%{customdata}<extra></extra>'))
         
         fig1.update_layout(title='서울시 연도별 전체 창업/폐업 추이', xaxis_title='연도', yaxis_title='건수', template='plotly_white')
         st.plotly_chart(fig1, use_container_width=True)
@@ -76,15 +86,13 @@ if data_raw is not None:
         st.subheader("업종 개수 및 검색어 필터")
         col1, col2 = st.columns(2)
         
-        all_industries_list = sorted(list(data_raw['업종명'].unique()))
+        industry_all = data_raw.groupby('업종명')[['창업수', '폐업수']].sum().reset_index()
+        industry_list_sorted = industry_all.sort_values(by='창업수', ascending=False)['업종명'].tolist()
         
         with col1:
             top_n = st.number_input("표시할 상위 업종 수", min_value=5, max_value=100, value=30, step=5)
         with col2:
-            # text_input 대신 multiselect를 활용하여 '미리보기' 및 '선택' 기능 제공
-            filter_industries = st.multiselect("특정 업종 필터 (미리보기 및 선택 가능)", options=all_industries_list, help="입력하면 해당 업종들만 비교합니다. 비워두면 상위 N개를 보여줍니다.")
-        
-        industry_all = data_raw.groupby('업종명')[['창업수', '폐업수']].sum().reset_index()
+            filter_industries = st.multiselect("특정 업종 필터 (창업순 정렬)", options=industry_list_sorted, help="입력하면 해당 업종들만 비교합니다. 비워두면 상위 N개를 보여줍니다.")
         
         if filter_industries:
             industry_display = industry_all[industry_all['업종명'].isin(filter_industries)]
