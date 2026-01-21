@@ -10,7 +10,7 @@ st.set_page_config(page_title="서울시 업종별 고도화 분석 대시보드
 
 @st.cache_data
 def load_data():
-    file_path = "e:/fastcampus/icb6/project1/data/seoul_business_stats.csv"
+    file_path = "data/seoul_business_stats.csv"
     if not os.path.exists(file_path):
         st.error(f"데이터 파일을 찾을 수 없습니다: {file_path}")
         return None
